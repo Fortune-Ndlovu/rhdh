@@ -635,6 +635,7 @@ base_deployment_osd_gcp() {
 
   # Merge base values with OSD-GCP diff file
   helm::merge_values "merge" "${DIR}/value_files/${HELM_CHART_VALUE_FILE_NAME}" "${DIR}/value_files/${HELM_CHART_OSD_GCP_DIFF_VALUE_FILE_NAME}" "/tmp/merged-values_showcase_OSD-GCP.yaml"
+  config::strip_orchestrator_plugin_entries_for_osd_gcp "/tmp/merged-values_showcase_OSD-GCP.yaml"
   mkdir -p "${ARTIFACT_DIR}/${NAME_SPACE}"
   rsync -a "/tmp/merged-values_showcase_OSD-GCP.yaml" "${ARTIFACT_DIR}/${NAME_SPACE}/" # Save the final value-file into the artifacts directory.
 
@@ -662,6 +663,7 @@ rbac_deployment_osd_gcp() {
 
   # Merge RBAC values with OSD-GCP diff file
   helm::merge_values "merge" "${DIR}/value_files/${HELM_CHART_RBAC_VALUE_FILE_NAME}" "${DIR}/value_files/${HELM_CHART_RBAC_OSD_GCP_DIFF_VALUE_FILE_NAME}" "/tmp/merged-values_showcase-rbac_OSD-GCP.yaml"
+  config::strip_orchestrator_plugin_entries_for_osd_gcp "/tmp/merged-values_showcase-rbac_OSD-GCP.yaml"
   mkdir -p "${ARTIFACT_DIR}/${NAME_SPACE_RBAC}"
   rsync -a "/tmp/merged-values_showcase-rbac_OSD-GCP.yaml" "${ARTIFACT_DIR}/${NAME_SPACE_RBAC}/" # Save the final value-file into the artifacts directory.
 

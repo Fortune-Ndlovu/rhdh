@@ -98,6 +98,25 @@ EOF
   return $?
 }
 
+# Remove orchestrator-related dynamic plugin entries from merged Helm values (OSD-GCP operator).
+# Disabled orchestrator packages still merge with the catalog index and duplicate GHCR overlay
+# entries, causing install-dynamic-plugins InstallException (RHDH nightly OSD-GCP).
+# Args:
+#   $1 - values_file: Path to merged values YAML to edit in place
+# Returns:
+#   0 - Success
+config::strip_orchestrator_plugin_entries_for_osd_gcp() {
+  local values_file=$1
+
+  if [[ -z "$values_file" ]]; then
+    log::error "Missing values file path"
+    return 1
+  fi
+
+  yq -i '(.global.dynamic.plugins // []) |= map(select((.package | tostring | test("orchestrator")) | not))' "${values_file}"
+  return $?
+}
+
 # ==============================================================================
 # Operator Configuration
 # ==============================================================================

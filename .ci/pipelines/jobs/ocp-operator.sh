@@ -56,6 +56,7 @@ initiate_operator_deployments_osd_gcp() {
 
   # Merge base values with OSD-GCP diff file before creating dynamic plugins config
   helm::merge_values "merge" "${DIR}/value_files/${HELM_CHART_VALUE_FILE_NAME}" "${DIR}/value_files/${HELM_CHART_OSD_GCP_DIFF_VALUE_FILE_NAME}" "/tmp/merged-values_showcase_OSD-GCP.yaml"
+  config::strip_orchestrator_plugin_entries_for_osd_gcp "/tmp/merged-values_showcase_OSD-GCP.yaml"
   config::create_dynamic_plugins_config "/tmp/merged-values_showcase_OSD-GCP.yaml" "/tmp/configmap-dynamic-plugins.yaml"
   common::save_artifact "${PW_PROJECT_SHOWCASE_OPERATOR}" "/tmp/configmap-dynamic-plugins.yaml"
 
@@ -74,6 +75,7 @@ initiate_operator_deployments_osd_gcp() {
 
   # Merge RBAC values with OSD-GCP diff file before creating dynamic plugins config
   helm::merge_values "merge" "${DIR}/value_files/${HELM_CHART_RBAC_VALUE_FILE_NAME}" "${DIR}/value_files/${HELM_CHART_RBAC_OSD_GCP_DIFF_VALUE_FILE_NAME}" "/tmp/merged-values_showcase-rbac_OSD-GCP.yaml"
+  config::strip_orchestrator_plugin_entries_for_osd_gcp "/tmp/merged-values_showcase-rbac_OSD-GCP.yaml"
   config::create_dynamic_plugins_config "/tmp/merged-values_showcase-rbac_OSD-GCP.yaml" "/tmp/configmap-dynamic-plugins-rbac.yaml"
   common::save_artifact "${PW_PROJECT_SHOWCASE_OPERATOR_RBAC}" "/tmp/configmap-dynamic-plugins-rbac.yaml"
 

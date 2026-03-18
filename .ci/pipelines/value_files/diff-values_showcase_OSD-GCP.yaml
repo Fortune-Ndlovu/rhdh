@@ -1,20 +1,10 @@
 # This file is for OSD-GCP installation only.
-# It is applied by `helm upgrade` after the `values-showcase.yaml` is applied and only contains complementary differences for OSD-GCP.
-# Note, that it overwrites the whole key that is present in this file.
-# The only exception is global.dynamic.plugins, that gets merged with the base file.
+# Operator OSD-GCP jobs merge this with values_showcase.yaml, then strip orchestrator plugin rows
+# (see config::strip_orchestrator_plugin_entries_for_osd_gcp in ocp-operator.sh).
 
 # Disable orchestrator for OSD-GCP due to infrastructure limitations
 orchestrator: null
 
-global:
-  dynamic:
-    plugins:
-      # Disable orchestrator plugins for OSD-GCP
-      - package: 'oci://registry.access.redhat.com/rhdh/red-hat-developer-hub-backstage-plugin-orchestrator:{{ "{{" }}inherit{{ "}}" }}'
-        disabled: true
-      - package: 'oci://registry.access.redhat.com/rhdh/red-hat-developer-hub-backstage-plugin-orchestrator-backend:{{ "{{" }}inherit{{ "}}" }}'
-        disabled: true
-      - package: 'oci://registry.access.redhat.com/rhdh/red-hat-developer-hub-backstage-plugin-scaffolder-backend-module-orchestrator:{{ "{{" }}inherit{{ "}}" }}'
-        disabled: true
-      - package: 'oci://registry.access.redhat.com/rhdh/red-hat-developer-hub-backstage-plugin-orchestrator-form-widgets:{{ "{{" }}inherit{{ "}}" }}'
-        disabled: true
+# Orchestrator dynamic plugin rows are stripped after merge (config::strip_orchestrator_plugin_entries_for_osd_gcp).
+# Setting disabled: true is not enough: the installer still merges them with the catalog and hits
+# InstallException: Duplicate plugin configuration for ... orchestrator (GHCR overlay).
