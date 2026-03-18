@@ -108,6 +108,10 @@ Localization tests verify that the RHDH UI displays correctly translated strings
 
 The localization test implementation is in `.ci/pipelines/jobs/ocp-nightly.sh` (`run_localization_tests()` function).
 
+### OSD-GCP dynamic plugins (Helm and Operator)
+
+OSD-GCP CI clusters do not reliably reach **ghcr.io**, so `install-dynamic-plugins` would fail when resolving `oci://ghcr.io/...` overlays. For `*osd-gcp*` jobs, merged Helm values are post-processed (see `config::strip_ghcr_dynamic_plugins_for_osd_gcp` in `.ci/pipelines/lib/config.sh`): `global.dynamic.includes` is cleared and every plugin whose `package` references `ghcr.io` is removed. Playwright skips specs that require those plugins when `JOB_NAME` contains `osd-gcp` (see `e2e-tests/playwright.config.ts`).
+
 ### CI Job Definitions
 
 #### Nightly Test Job

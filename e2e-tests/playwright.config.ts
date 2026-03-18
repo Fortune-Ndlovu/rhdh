@@ -13,6 +13,19 @@ const isOsdGcpJob = process.env.JOB_NAME.includes("osd-gcp");
 
 const shouldSkipOrchestratorTests = isPrOcpHelmJob || isOsdGcpJob;
 
+/** OSD-GCP cannot install GHCR OCI plugins (egress); Helm/operator deploys omit them. */
+const osdGcpNoGhcrPluginTestIgnores = isOsdGcpJob
+  ? [
+      "**/playwright/e2e/plugins/application-provider.spec.ts",
+      "**/playwright/e2e/plugins/quay/quay.spec.ts",
+      "**/playwright/e2e/plugins/quay/quay-actions.spec.ts",
+    ]
+  : [];
+
+const osdGcpNoGhcrRbacTestIgnores = isOsdGcpJob
+  ? ["**/playwright/e2e/plugins/scorecard/scorecard.spec.ts"]
+  : [];
+
 // Set LOCALE based on which project is being run
 const args = process.argv;
 
@@ -103,6 +116,7 @@ export default defineConfig({
         ...(shouldSkipOrchestratorTests
           ? ["**/playwright/e2e/plugins/orchestrator/**/*.spec.ts"]
           : []),
+        ...osdGcpNoGhcrPluginTestIgnores,
       ],
     },
     {
@@ -120,6 +134,7 @@ export default defineConfig({
         ...(shouldSkipOrchestratorTests
           ? ["**/playwright/e2e/plugins/orchestrator/**/*.spec.ts"]
           : []),
+        ...osdGcpNoGhcrRbacTestIgnores,
       ],
     },
     {
@@ -190,6 +205,7 @@ export default defineConfig({
         "**/playwright/e2e/dynamic-home-page-customization.spec.ts",
         "**/playwright/e2e/plugins/scorecard/scorecard.spec.ts",
         "**/playwright/e2e/plugins/orchestrator/token-propagation-workflow.spec.ts",
+        ...osdGcpNoGhcrPluginTestIgnores,
       ],
     },
     {
@@ -205,6 +221,7 @@ export default defineConfig({
         ...(shouldSkipOrchestratorTests
           ? ["**/playwright/e2e/plugins/orchestrator/**/*.spec.ts"]
           : []),
+        ...osdGcpNoGhcrRbacTestIgnores,
       ],
     },
     {

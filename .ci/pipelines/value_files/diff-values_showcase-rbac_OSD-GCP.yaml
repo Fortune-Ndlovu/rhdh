@@ -1,7 +1,5 @@
 # This file is for OSD-GCP RBAC installation only.
-# Merged with values_showcase-rbac.yaml; orchestrator plugin rows stripped post-merge (operator OSD-GCP).
+# Same post-merge strips as diff-values_showcase_OSD-GCP.yaml (orchestrator + no GHCR plugins).
 
 # Disable orchestrator for OSD-GCP due to infrastructure limitations
 orchestrator: null
-
-# See diff-values_showcase_OSD-GCP.yaml — orchestrator plugin rows are stripped post-merge for operator OSD-GCP.

@@ -1,10 +1,7 @@
 # This file is for OSD-GCP installation only.
-# Operator OSD-GCP jobs merge this with values_showcase.yaml, then strip orchestrator plugin rows
-# (see config::strip_orchestrator_plugin_entries_for_osd_gcp in ocp-operator.sh).
+# After merge, CI runs config::strip_orchestrator_plugin_entries_for_osd_gcp then
+# config::strip_ghcr_dynamic_plugins_for_osd_gcp (empty includes, drop oci://ghcr.io rows).
+# OSD-GCP egress to ghcr.io is unreliable; without this, install-dynamic-plugins times out on skopeo.
 
 # Disable orchestrator for OSD-GCP due to infrastructure limitations
 orchestrator: null
-
-# Orchestrator dynamic plugin rows are stripped after merge (config::strip_orchestrator_plugin_entries_for_osd_gcp).
-# Setting disabled: true is not enough: the installer still merges them with the catalog and hits
-# InstallException: Duplicate plugin configuration for ... orchestrator (GHCR overlay).

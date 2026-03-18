@@ -107,14 +107,54 @@ EOF
 #   0 - Success
 config::strip_orchestrator_plugin_entries_for_osd_gcp() {
   local values_file=$1
+  local count_before count_after
 
   if [[ -z "$values_file" ]]; then
     log::error "Missing values file path"
     return 1
   fi
 
-  yq -i '(.global.dynamic.plugins // []) |= map(select((.package | tostring | test("orchestrator")) | not))' "${values_file}"
-  return $?
+  count_before=$(yq e '.global.dynamic.plugins | length' "${values_file}" 2>/dev/null || echo 0)
+  # yq-only filter preserves Helm template literals in package strings (e.g. {{ "{{" }}inherit{{ "}}" }}).
+  # Do not round-trip through jq/json — that corrupts those strings and breaks install-dynamic-plugins.
+  yq -i '(.global.dynamic.plugins // []) |= map(select((.package | tostring | downcase | contains("orchestrator") | not)))' "${values_file}" || return 1
+  count_after=$(yq e '.global.dynamic.plugins | length' "${values_file}" 2>/dev/null || echo 0)
+  log::info "OSD-GCP: removed $((count_before - count_after)) orchestrator-related plugin row(s) ($count_after remaining)"
+
+  if yq e '.global.dynamic.plugins[]?.package' "${values_file}" 2>/dev/null | grep -qi orchestrator; then
+    log::error "OSD-GCP: orchestrator plugin entries still present after strip"
+    return 1
+  fi
+  return 0
+}
+
+# OSD-GCP shared CI clusters cannot reliably reach ghcr.io (skopeo timeouts during
+# install-dynamic-plugins). Drop catalog/includes merge and all GHCR OCI plugin rows
+# so the init container only resolves quay.io, registry.access.redhat.com, and bundled dist paths.
+# Args:
+#   $1 - values_file: merged Helm values to edit in place
+# Returns:
+#   0 - Success
+config::strip_ghcr_dynamic_plugins_for_osd_gcp() {
+  local values_file=$1
+  local count_before count_after
+
+  if [[ -z "${values_file}" ]]; then
+    log::error "Missing values file path"
+    return 1
+  fi
+
+  count_before=$(yq e '.global.dynamic.plugins | length' "${values_file}" 2>/dev/null || echo 0)
+  yq -i '.global.dynamic.includes = []' "${values_file}" || return 1
+  yq -i '(.global.dynamic.plugins // []) |= map(select(.package == null or (.package | tostring | downcase | contains("ghcr.io") | not)))' "${values_file}" || return 1
+  count_after=$(yq e '.global.dynamic.plugins | length' "${values_file}" 2>/dev/null || echo 0)
+  log::info "OSD-GCP: cleared dynamic plugin includes; removed GHCR OCI rows ($((count_before - count_after)) removed, $count_after plugins remain)"
+
+  if yq e '.global.dynamic.plugins[]?.package' "${values_file}" 2>/dev/null | grep -qi ghcr; then
+    log::error "OSD-GCP: ghcr.io plugin entries still present after strip"
+    return 1
+  fi
+  return 0
 }
 
 # ==============================================================================
