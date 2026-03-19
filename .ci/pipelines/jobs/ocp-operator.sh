@@ -46,8 +46,9 @@ initiate_operator_deployments() {
 # OSD-GCP specific operator deployment that skips orchestrator workflows
 initiate_operator_deployments_osd_gcp() {
   log::info "Initiating Operator-backed deployments on OSD-GCP (orchestrator disabled)"
-
-  prepare_operator
+  # Do not call prepare_operator here: handle_ocp_operator already ran it. A second install
+  # deletes rhdh-operator and often leaves the manager pod still pulling when Backstage CR
+  # is applied (timeout: Database resource created by operator).
 
   namespace::configure "${NAME_SPACE}"
   deploy_test_backstage_customization_provider "${NAME_SPACE}"

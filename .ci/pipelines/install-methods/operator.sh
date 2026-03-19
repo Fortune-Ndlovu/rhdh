@@ -5,6 +5,43 @@ source "$DIR"/lib/log.sh
 # shellcheck source=.ci/pipelines/utils.sh
 source "$DIR"/utils.sh
 
+# OSD-GCP claimed clusters may fail to pull registry.redhat.io operator images without explicit credentials.
+operator::_osd_gcp_use_registry_pull_secret() {
+  [[ "${JOB_NAME:-}" =~ osd-gcp ]] && [[ -n "${REGISTRY_REDHAT_IO_SERVICE_ACCOUNT_DOCKERCONFIGJSON:-}" ]]
+}
+
+# Link rh-pull-secret to every SA used by Deployments in rhdh-operator, then restart (manager uses non-default SA).
+operator::_link_pull_secret_to_operator_workloads() {
+  local ns=$1
+  local secret=rh-pull-secret
+
+  oc get secret "$secret" -n "$ns" &> /dev/null || return 0
+
+  log::info "Linking ${secret} to RHDH operator workload service accounts in ${ns}"
+  local i deploy_count
+  for ((i = 0; i < 60; i++)); do
+    deploy_count=$(oc get deployment -n "$ns" --no-headers 2> /dev/null | wc -l)
+    deploy_count=${deploy_count// /}
+    if [[ "${deploy_count:-0}" -gt 0 ]]; then
+      break
+    fi
+    sleep 5
+  done
+
+  local sas sa
+  sas=$(oc get deployment -n "$ns" -o jsonpath='{range .items[*]}{.spec.template.spec.serviceAccountName}{"\n"}{end}' 2> /dev/null | sort -u)
+  while IFS= read -r sa; do
+    [[ -z "$sa" ]] && continue
+    if oc get sa "$sa" -n "$ns" &> /dev/null; then
+      oc secrets link "serviceaccount/${sa}" "$secret" --for=pull -n "$ns" &> /dev/null || true
+    fi
+  done <<< "$sas"
+
+  log::info "Restarting RHDH operator deployments to retry image pull with ${secret}..."
+  oc rollout restart deployment -n "$ns" &> /dev/null || true
+  sleep 15
+}
+
 install_rhdh_operator() {
   local namespace=$1
   local max_attempts=$2
@@ -13,6 +50,9 @@ install_rhdh_operator() {
 
   if [[ -z "${IS_OPENSHIFT}" || "${IS_OPENSHIFT}" == "false" ]]; then
     namespace::setup_image_pull_secret "rhdh-operator" "rh-pull-secret" "${REGISTRY_REDHAT_IO_SERVICE_ACCOUNT_DOCKERCONFIGJSON}"
+  elif operator::_osd_gcp_use_registry_pull_secret; then
+    log::info "OSD-GCP: creating registry.redhat.io pull secret for RHDH operator namespace"
+    namespace::setup_image_pull_secret "rhdh-operator" "rh-pull-secret" "${REGISTRY_REDHAT_IO_SERVICE_ACCOUNT_DOCKERCONFIGJSON}" || return 1
   fi
   # Make sure script is up to date
   rm -f /tmp/install-rhdh-catalog-source.sh
@@ -40,6 +80,10 @@ install_rhdh_operator() {
       return 1
     fi
   fi
+
+  if operator::_osd_gcp_use_registry_pull_secret; then
+    operator::_link_pull_secret_to_operator_workloads "$namespace"
+  fi
 }
 
 prepare_operator() {
@@ -49,6 +93,10 @@ prepare_operator() {
 
   # Wait for Backstage CRD to be available after operator installation
   k8s_wait::crd "backstages.rhdh.redhat.com" 300 10 || return 1
+
+  # Install script can return before the controller-manager pod is Running; reconcile needs it.
+  log::info "Waiting for RHDH operator controller pod to be ready..."
+  k8s_wait::deployment "${OPERATOR_MANAGER}" "rhdh-operator" 10 15 || return 1
 }
 
 deploy_rhdh_operator() {

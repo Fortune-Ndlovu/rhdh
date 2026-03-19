@@ -112,6 +112,10 @@ The localization test implementation is in `.ci/pipelines/jobs/ocp-nightly.sh` (
 
 OSD-GCP CI clusters do not reliably reach **ghcr.io**, so `install-dynamic-plugins` would fail when resolving `oci://ghcr.io/...` overlays. For `*osd-gcp*` jobs, merged Helm values are post-processed (see `config::strip_ghcr_dynamic_plugins_for_osd_gcp` in `.ci/pipelines/lib/config.sh`): `global.dynamic.includes` is cleared and every plugin whose `package` references `ghcr.io` is removed. Playwright skips specs that require those plugins when `JOB_NAME` contains `osd-gcp` (see `e2e-tests/playwright.config.ts`).
 
+Operator OSD-GCP jobs must not run **`prepare_operator` twice** (once in `handle_ocp_operator` and again in `initiate_operator_deployments_osd_gcp`): the second run wipes the `rhdh-operator` namespace and can leave the controller-manager pod still pulling its image when the Backstage CR is applied, causing timeouts waiting for the database resource.
+
+If the RHDH operator **`manager` container fails with image pull errors** on OSD-GCP, CI applies **`REGISTRY_REDHAT_IO_SERVICE_ACCOUNT_DOCKERCONFIGJSON`** as `rh-pull-secret`, links it to the operator workload service accounts, and rollouts restart (see `install_rhdh_operator` in `.ci/pipelines/install-methods/operator.sh`). Ensure that secret is present in the OpenShift CI job; without it, only cluster-wide pull configuration applies.
+
 ### CI Job Definitions
 
 #### Nightly Test Job
