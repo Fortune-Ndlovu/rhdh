@@ -64,7 +64,8 @@ initiate_operator_deployments_osd_gcp() {
 
   oc apply -f /tmp/configmap-dynamic-plugins.yaml -n "${NAME_SPACE}"
   deploy_redis_cache "${NAME_SPACE}"
-  deploy_rhdh_operator "${NAME_SPACE}" "${DIR}/resources/rhdh-operator/rhdh-start.yaml"
+  # OSD-GCP CR omits CATALOG_INDEX_IMAGE so install-dynamic-plugins does not merge catalog (avoids orchestrator {{inherit}}).
+  deploy_rhdh_operator "${NAME_SPACE}" "${DIR}/resources/rhdh-operator/rhdh-start-osd-gcp.yaml"
 
   # Skip orchestrator plugins and workflows for OSD-GCP
   log::warn "Skipping orchestrator plugins and workflows deployment on OSD-GCP environment"
@@ -83,7 +84,8 @@ initiate_operator_deployments_osd_gcp() {
   common::save_artifact "${PW_PROJECT_SHOWCASE_OPERATOR_RBAC}" "/tmp/configmap-dynamic-plugins-rbac.yaml"
 
   oc apply -f /tmp/configmap-dynamic-plugins-rbac.yaml -n "${NAME_SPACE_RBAC}"
-  deploy_rhdh_operator "${NAME_SPACE_RBAC}" "${DIR}/resources/rhdh-operator/rhdh-start-rbac.yaml"
+  # OSD-GCP CR omits CATALOG_INDEX_IMAGE so install-dynamic-plugins does not merge catalog (avoids orchestrator {{inherit}}).
+  deploy_rhdh_operator "${NAME_SPACE_RBAC}" "${DIR}/resources/rhdh-operator/rhdh-start-rbac-osd-gcp.yaml"
 
   # Skip orchestrator plugins and workflows for OSD-GCP RBAC
   log::warn "Skipping orchestrator plugins and workflows deployment on OSD-GCP RBAC environment"

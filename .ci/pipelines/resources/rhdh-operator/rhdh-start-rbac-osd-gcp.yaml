@@ -1,0 +1,48 @@
+kind: Backstage
+apiVersion: rhdh.redhat.com/v1alpha5
+metadata:
+  name: rhdh-rbac
+spec:
+  deployment:
+    patch:
+      spec:
+        template:
+          spec:
+            containers:
+              - name: backstage-backend
+                image: "quay.io/$QUAY_REPO:$TAG_NAME"
+            initContainers:
+              - name: install-dynamic-plugins
+                image: "quay.io/$QUAY_REPO:$TAG_NAME"
+            volumes:
+              - name: dynamic-plugins-root
+                ephemeral:
+                  volumeClaimTemplate:
+                    spec:
+                      accessModes:
+                        - ReadWriteOnce
+                      resources:
+                        requests:
+                          storage: 5Gi
+  application:
+    appConfig:
+      configMaps:
+        - name: app-config-rhdh
+      mountPath: /opt/app-root/src
+    dynamicPluginsConfigMapName: dynamic-plugins
+    extraEnvs:
+      envs:
+        - name: SEGMENT_TEST_MODE
+          value: "true"
+        - name: NODE_TLS_REJECT_UNAUTHORIZED
+          value: "0"
+        - name: NODE_ENV
+          value: "production"
+        # OSD-GCP: omit CATALOG_INDEX_IMAGE so install-dynamic-plugins does not extract
+        # the catalog index (avoids orchestrator plugin with {{inherit}} when includes are empty).
+      secrets:
+        - name: rhdh-secrets
+    extraFiles:
+      configMaps:
+        - name: rbac-policy
+      mountPath: /opt/app-root/src/rbac
