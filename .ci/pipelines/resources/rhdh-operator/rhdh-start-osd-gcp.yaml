@@ -41,8 +41,8 @@ spec:
           value: "production"
         - name: NODE_TLS_REJECT_UNAUTHORIZED
           value: "0"
-        # OSD-GCP: omit CATALOG_INDEX_IMAGE so install-dynamic-plugins does not extract
-        # the catalog index (avoids orchestrator plugin with {{inherit}} when includes are empty).
+        # OSD-GCP: Catalog index is extracted (operator default), but orchestrator plugins are
+        # disabled (not removed) so {{inherit}} has base configs to merge with.
       secrets:
         - name: rhdh-secrets
         - name: redis-secret

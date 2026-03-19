@@ -69,7 +69,7 @@ initiate_operator_deployments_osd_gcp() {
   deploy_rhdh_operator "${NAME_SPACE}" "${DIR}/resources/rhdh-operator/rhdh-start-osd-gcp.yaml"
   # Re-apply our stripped ConfigMap after CR so it overwrites any default the operator merged; then restart so pods use it.
   oc apply -f /tmp/configmap-dynamic-plugins.yaml -n "${NAME_SPACE}"
-  oc rollout restart deployment/backstage-rhdh -n "${NAME_SPACE}" --timeout=120s || true
+  oc rollout restart deployment/backstage-rhdh -n "${NAME_SPACE}" || true
 
   # Skip orchestrator plugins and workflows for OSD-GCP
   log::warn "Skipping orchestrator plugins and workflows deployment on OSD-GCP environment"
@@ -92,7 +92,7 @@ initiate_operator_deployments_osd_gcp() {
   deploy_rhdh_operator "${NAME_SPACE_RBAC}" "${DIR}/resources/rhdh-operator/rhdh-start-rbac-osd-gcp.yaml"
   # Re-apply our stripped ConfigMap after CR so it overwrites any default the operator merged; then restart so pods use it.
   oc apply -f /tmp/configmap-dynamic-plugins-rbac.yaml -n "${NAME_SPACE_RBAC}"
-  oc rollout restart deployment/backstage-rhdh-rbac -n "${NAME_SPACE_RBAC}" --timeout=120s || true
+  oc rollout restart deployment/backstage-rhdh-rbac -n "${NAME_SPACE_RBAC}" || true
 
   # Skip orchestrator plugins and workflows for OSD-GCP RBAC
   log::warn "Skipping orchestrator plugins and workflows deployment on OSD-GCP RBAC environment"

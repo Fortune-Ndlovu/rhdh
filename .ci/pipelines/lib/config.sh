@@ -107,24 +107,20 @@ EOF
 #   0 - Success
 config::strip_orchestrator_plugin_entries_for_osd_gcp() {
   local values_file=$1
-  local count_before count_after
+  local count_disabled
 
   if [[ -z "$values_file" ]]; then
     log::error "Missing values file path"
     return 1
   fi
 
-  count_before=$(yq e '.global.dynamic.plugins | length' "${values_file}" 2> /dev/null || echo 0)
-  # yq-only filter preserves Helm template literals in package strings (e.g. {{ "{{" }}inherit{{ "}}" }}).
-  # Do not round-trip through jq/json — that corrupts those strings and breaks install-dynamic-plugins.
-  yq -i '(.global.dynamic.plugins // []) |= map(select((.package | tostring | downcase | contains("orchestrator") | not)))' "${values_file}" || return 1
-  count_after=$(yq e '.global.dynamic.plugins | length' "${values_file}" 2> /dev/null || echo 0)
-  log::info "OSD-GCP: removed $((count_before - count_after)) orchestrator-related plugin row(s) ($count_after remaining)"
+  # Instead of removing orchestrator plugins, disable them so {{inherit}} in catalog index has base configs.
+  # The catalog index (applied by operator default) contains orchestrator plugins with {{inherit}} that fail
+  # if no base configuration exists.
+  yq -i '(.global.dynamic.plugins // []) |= map(if (.package | tostring | downcase | contains("orchestrator")) then . + {"disabled": true} else . end)' "${values_file}" || return 1
+  count_disabled=$(yq e '[.global.dynamic.plugins[] | select(.package | tostring | downcase | contains("orchestrator"))] | length' "${values_file}" 2> /dev/null || echo 0)
+  log::info "OSD-GCP: disabled ${count_disabled} orchestrator-related plugin(s) (kept as base for {{inherit}})"
 
-  if yq e '.global.dynamic.plugins[]?.package' "${values_file}" 2> /dev/null | grep -qi orchestrator; then
-    log::error "OSD-GCP: orchestrator plugin entries still present after strip"
-    return 1
-  fi
   return 0
 }
 
