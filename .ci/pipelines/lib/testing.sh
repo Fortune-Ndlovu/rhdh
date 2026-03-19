@@ -188,6 +188,13 @@ testing::check_backstage_running() {
         log::error "Recent logs from deployment:"
         oc logs deployment/${release_name}-developer-hub -n "${namespace}" --tail=100 --all-containers=true 2> /dev/null \
           || oc logs deployment/${release_name} -n "${namespace}" --tail=100 --all-containers=true 2> /dev/null || true
+        # Dump init container logs so install-dynamic-plugins crashes show the Python traceback
+        for pod in $(echo "${crash_pods}" | awk '{print $1}'); do
+          if oc get pod "${pod}" -n "${namespace}" &> /dev/null; then
+            log::error "Init container (install-dynamic-plugins) logs from pod ${pod}:"
+            oc logs "${pod}" -n "${namespace}" -c install-dynamic-plugins --tail=200 2> /dev/null || true
+          fi
+        done
         log::error "Recent events:"
         oc get events -n "${namespace}" --sort-by='.lastTimestamp' | tail -20
         mkdir -p "${ARTIFACT_DIR}/${namespace}"

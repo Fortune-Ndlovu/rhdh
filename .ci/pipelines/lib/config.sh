@@ -146,7 +146,15 @@ config::strip_ghcr_dynamic_plugins_for_osd_gcp() {
 
   count_before=$(yq e '.global.dynamic.plugins | length' "${values_file}" 2> /dev/null || echo 0)
   yq -i '.global.dynamic.includes = []' "${values_file}" || return 1
-  yq -i '(.global.dynamic.plugins // []) |= map(select(.package == null or (.package | tostring | downcase | contains("ghcr.io") | not)))' "${values_file}" || return 1
+  # Keep only plugins with a non-empty package that does not reference ghcr.io. Dropping null/empty
+  # package avoids install-dynamic-plugins crashes; dropping {{inherit}} refs avoids "no existing
+  # plugin configuration found" when includes is empty.
+  yq -i '(.global.dynamic.plugins // []) |= map(select(
+    (.package != null) and
+    ((.package | tostring | length) > 0) and
+    ((.package | tostring | downcase | contains("ghcr.io")) | not) and
+    ((.package | tostring | contains("inherit")) | not)
+  ))' "${values_file}" || return 1
   count_after=$(yq e '.global.dynamic.plugins | length' "${values_file}" 2> /dev/null || echo 0)
   log::info "OSD-GCP: cleared dynamic plugin includes; removed GHCR OCI rows ($((count_before - count_after)) removed, $count_after plugins remain)"
 
