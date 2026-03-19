@@ -59,13 +59,13 @@ initiate_operator_deployments_osd_gcp() {
   helm::merge_values "merge" "${DIR}/value_files/${HELM_CHART_VALUE_FILE_NAME}" "${DIR}/value_files/${HELM_CHART_OSD_GCP_DIFF_VALUE_FILE_NAME}" "/tmp/merged-values_showcase_OSD-GCP.yaml"
   config::strip_orchestrator_plugin_entries_for_osd_gcp "/tmp/merged-values_showcase_OSD-GCP.yaml"
   config::strip_ghcr_dynamic_plugins_for_osd_gcp "/tmp/merged-values_showcase_OSD-GCP.yaml"
-  config::create_dynamic_plugins_config "/tmp/merged-values_showcase_OSD-GCP.yaml" "/tmp/configmap-dynamic-plugins.yaml"
+  config::set_osd_gcp_dynamic_includes_for_catalog "${DIR}" "/tmp/merged-values_showcase_OSD-GCP.yaml"
+  config::create_dynamic_plugins_config "/tmp/merged-values_showcase_OSD-GCP.yaml" "/tmp/configmap-dynamic-plugins.yaml" "osd_gcp"
   common::save_artifact "${PW_PROJECT_SHOWCASE_OPERATOR}" "/tmp/configmap-dynamic-plugins.yaml"
 
   oc apply -f /tmp/configmap-dynamic-plugins.yaml -n "${NAME_SPACE}"
   deploy_redis_cache "${NAME_SPACE}"
-  # OSD-GCP CR omits CATALOG_INDEX_IMAGE so install-dynamic-plugins does not merge catalog (avoids orchestrator {{inherit}}).
-  deploy_rhdh_operator "${NAME_SPACE}" "${DIR}/resources/rhdh-operator/rhdh-start-osd-gcp.yaml"
+  deploy_rhdh_operator "${NAME_SPACE}" "${DIR}/resources/rhdh-operator/rhdh-start.yaml"
 
   # Skip orchestrator plugins and workflows for OSD-GCP
   log::warn "Skipping orchestrator plugins and workflows deployment on OSD-GCP environment"
@@ -80,12 +80,12 @@ initiate_operator_deployments_osd_gcp() {
   helm::merge_values "merge" "${DIR}/value_files/${HELM_CHART_RBAC_VALUE_FILE_NAME}" "${DIR}/value_files/${HELM_CHART_RBAC_OSD_GCP_DIFF_VALUE_FILE_NAME}" "/tmp/merged-values_showcase-rbac_OSD-GCP.yaml"
   config::strip_orchestrator_plugin_entries_for_osd_gcp "/tmp/merged-values_showcase-rbac_OSD-GCP.yaml"
   config::strip_ghcr_dynamic_plugins_for_osd_gcp "/tmp/merged-values_showcase-rbac_OSD-GCP.yaml"
-  config::create_dynamic_plugins_config "/tmp/merged-values_showcase-rbac_OSD-GCP.yaml" "/tmp/configmap-dynamic-plugins-rbac.yaml"
+  config::set_osd_gcp_dynamic_includes_for_catalog "${DIR}" "/tmp/merged-values_showcase-rbac_OSD-GCP.yaml"
+  config::create_dynamic_plugins_config "/tmp/merged-values_showcase-rbac_OSD-GCP.yaml" "/tmp/configmap-dynamic-plugins-rbac.yaml" "osd_gcp"
   common::save_artifact "${PW_PROJECT_SHOWCASE_OPERATOR_RBAC}" "/tmp/configmap-dynamic-plugins-rbac.yaml"
 
   oc apply -f /tmp/configmap-dynamic-plugins-rbac.yaml -n "${NAME_SPACE_RBAC}"
-  # OSD-GCP CR omits CATALOG_INDEX_IMAGE so install-dynamic-plugins does not merge catalog (avoids orchestrator {{inherit}}).
-  deploy_rhdh_operator "${NAME_SPACE_RBAC}" "${DIR}/resources/rhdh-operator/rhdh-start-rbac-osd-gcp.yaml"
+  deploy_rhdh_operator "${NAME_SPACE_RBAC}" "${DIR}/resources/rhdh-operator/rhdh-start-rbac.yaml"
 
   # Skip orchestrator plugins and workflows for OSD-GCP RBAC
   log::warn "Skipping orchestrator plugins and workflows deployment on OSD-GCP RBAC environment"
