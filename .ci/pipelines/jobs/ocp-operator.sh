@@ -55,12 +55,13 @@ initiate_operator_deployments_osd_gcp() {
   local rhdh_base_url="https://backstage-${RELEASE_NAME}-${NAME_SPACE}.${K8S_CLUSTER_ROUTER_BASE}"
   apply_yaml_files "${DIR}" "${NAME_SPACE}" "${rhdh_base_url}"
 
-  # Merge base values with OSD-GCP diff file before creating dynamic plugins config
+  # Merge base values with OSD-GCP diff file before creating dynamic plugins config.
+  # Keep includes=[] (from strip_ghcr) so the installer never merges the catalog; the catalog
+  # contains ghcr.io plugins which OSD-GCP cannot reach (skopeo timeout).
   helm::merge_values "merge" "${DIR}/value_files/${HELM_CHART_VALUE_FILE_NAME}" "${DIR}/value_files/${HELM_CHART_OSD_GCP_DIFF_VALUE_FILE_NAME}" "/tmp/merged-values_showcase_OSD-GCP.yaml"
   config::strip_orchestrator_plugin_entries_for_osd_gcp "/tmp/merged-values_showcase_OSD-GCP.yaml"
   config::strip_ghcr_dynamic_plugins_for_osd_gcp "/tmp/merged-values_showcase_OSD-GCP.yaml"
-  config::set_osd_gcp_dynamic_includes_for_catalog "${DIR}" "/tmp/merged-values_showcase_OSD-GCP.yaml"
-  config::create_dynamic_plugins_config "/tmp/merged-values_showcase_OSD-GCP.yaml" "/tmp/configmap-dynamic-plugins.yaml" "osd_gcp"
+  config::create_dynamic_plugins_config "/tmp/merged-values_showcase_OSD-GCP.yaml" "/tmp/configmap-dynamic-plugins.yaml"
   common::save_artifact "${PW_PROJECT_SHOWCASE_OPERATOR}" "/tmp/configmap-dynamic-plugins.yaml"
 
   oc apply -f /tmp/configmap-dynamic-plugins.yaml -n "${NAME_SPACE}"
@@ -76,12 +77,12 @@ initiate_operator_deployments_osd_gcp() {
   local rbac_rhdh_base_url="https://backstage-${RELEASE_NAME_RBAC}-${NAME_SPACE_RBAC}.${K8S_CLUSTER_ROUTER_BASE}"
   apply_yaml_files "${DIR}" "${NAME_SPACE_RBAC}" "${rbac_rhdh_base_url}"
 
-  # Merge RBAC values with OSD-GCP diff file before creating dynamic plugins config
+  # Merge RBAC values with OSD-GCP diff file before creating dynamic plugins config.
+  # Keep includes=[] so the catalog is never merged (avoids ghcr.io plugins in catalog).
   helm::merge_values "merge" "${DIR}/value_files/${HELM_CHART_RBAC_VALUE_FILE_NAME}" "${DIR}/value_files/${HELM_CHART_RBAC_OSD_GCP_DIFF_VALUE_FILE_NAME}" "/tmp/merged-values_showcase-rbac_OSD-GCP.yaml"
   config::strip_orchestrator_plugin_entries_for_osd_gcp "/tmp/merged-values_showcase-rbac_OSD-GCP.yaml"
   config::strip_ghcr_dynamic_plugins_for_osd_gcp "/tmp/merged-values_showcase-rbac_OSD-GCP.yaml"
-  config::set_osd_gcp_dynamic_includes_for_catalog "${DIR}" "/tmp/merged-values_showcase-rbac_OSD-GCP.yaml"
-  config::create_dynamic_plugins_config "/tmp/merged-values_showcase-rbac_OSD-GCP.yaml" "/tmp/configmap-dynamic-plugins-rbac.yaml" "osd_gcp"
+  config::create_dynamic_plugins_config "/tmp/merged-values_showcase-rbac_OSD-GCP.yaml" "/tmp/configmap-dynamic-plugins-rbac.yaml"
   common::save_artifact "${PW_PROJECT_SHOWCASE_OPERATOR_RBAC}" "/tmp/configmap-dynamic-plugins-rbac.yaml"
 
   oc apply -f /tmp/configmap-dynamic-plugins-rbac.yaml -n "${NAME_SPACE_RBAC}"

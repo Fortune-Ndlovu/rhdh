@@ -74,17 +74,15 @@ config::select_config_map_file() {
 # Args:
 #   $1 - base_file: Path to the values file containing plugin configuration
 #   $2 - output_file: Path for the generated ConfigMap YAML
-#   $3 - optional: "osd_gcp" to add orchestrator-base.yaml so catalog {{inherit}} has a base
 # Returns:
 #   0 - Success
 config::create_dynamic_plugins_config() {
   local base_file=$1
   local output_file=$2
-  local osd_gcp="${3:-}"
 
   if [[ -z "$base_file" || -z "$output_file" ]]; then
     log::error "Missing required parameters"
-    log::info "Usage: config::create_dynamic_plugins_config <base_file> <output_file> [osd_gcp]"
+    log::info "Usage: config::create_dynamic_plugins_config <base_file> <output_file>"
     return 1
   fi
 
@@ -97,44 +95,7 @@ data:
   dynamic-plugins.yaml: |
 EOF
   yq '.global.dynamic' "${base_file}" | sed -e 's/^/    /' >> "${output_file}"
-
-  if [[ "${osd_gcp}" == "osd_gcp" ]]; then
-    # Catalog (or operator default) may inject CATALOG_INDEX_IMAGE; provide bases for all
-    # orchestrator-related plugins that use {{inherit}} so the installer does not fail.
-    cat >> "${output_file}" << 'ORCHBASE'
-  orchestrator-base.yaml: |
-    plugins:
-      - package: oci://registry.access.redhat.com/rhdh/red-hat-developer-hub-backstage-plugin-orchestrator:1.10
-        disabled: true
-      - package: oci://registry.access.redhat.com/rhdh/red-hat-developer-hub-backstage-plugin-orchestrator-backend:1.10
-        disabled: true
-      - package: oci://registry.access.redhat.com/rhdh/red-hat-developer-hub-backstage-plugin-scaffolder-backend-module-orchestrator:1.10
-        disabled: true
-      - package: oci://registry.access.redhat.com/rhdh/red-hat-developer-hub-backstage-plugin-orchestrator-form-widgets:1.10
-        disabled: true
-ORCHBASE
-    log::info "OSD-GCP: added orchestrator-base.yaml (4 plugins) to ConfigMap so catalog {{inherit}} has a base"
-  fi
   return $?
-}
-
-# Set OSD-GCP dynamic includes so the catalog is loaded and orchestrator {{inherit}} finds a base.
-# Call after strip_ghcr_dynamic_plugins_for_osd_gcp. Ensures includes list orchestrator-base.yaml
-# first, then dynamic-plugins.default.yaml (replaced by script with catalog path when CATALOG_INDEX_IMAGE is set).
-# Args:
-#   $1 - dir: Pipeline DIR (unused, for future use)
-#   $2 - values_file: Path to merged values YAML to edit in place
-# Returns:
-#   0 - Success
-config::set_osd_gcp_dynamic_includes_for_catalog() {
-  local values_file=$2
-  if [[ -z "$values_file" ]]; then
-    log::error "Missing values file path"
-    return 1
-  fi
-  yq -i '.global.dynamic.includes = ["orchestrator-base.yaml", "dynamic-plugins.default.yaml"]' "${values_file}" || return 1
-  log::info "OSD-GCP: set dynamic includes to [orchestrator-base.yaml, dynamic-plugins.default.yaml] for catalog"
-  return 0
 }
 
 # Remove orchestrator-related dynamic plugin entries from merged Helm values (OSD-GCP operator).
