@@ -117,7 +117,8 @@ config::strip_orchestrator_plugin_entries_for_osd_gcp() {
   # Instead of removing orchestrator plugins, disable them so {{inherit}} in catalog index has base configs.
   # The catalog index (applied by operator default) contains orchestrator plugins with {{inherit}} that fail
   # if no base configuration exists.
-  yq -i '(.global.dynamic.plugins // []) |= map(if (.package | tostring | downcase | contains("orchestrator")) then . + {"disabled": true} else . end)' "${values_file}" || return 1
+  # yq rejects if/then/else inside map(); use per-element assignment (same intent as orchestrator.sh).
+  yq eval -i '(.global.dynamic.plugins[]? | select((.package | tostring | downcase | contains("orchestrator")))).disabled = true' "${values_file}" || return 1
   count_disabled=$(yq e '[.global.dynamic.plugins[] | select(.package | tostring | downcase | contains("orchestrator"))] | length' "${values_file}" 2> /dev/null || echo 0)
   log::info "OSD-GCP: disabled ${count_disabled} orchestrator-related plugin(s) (kept as base for {{inherit}})"
 
