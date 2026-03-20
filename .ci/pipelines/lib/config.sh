@@ -184,7 +184,7 @@ config::merge_osd_gcp_operator_dynamic_plugins() {
     return 1
   fi
 
-  operator_cm=$(oc get cm -n "$namespace" --no-headers 2>/dev/null | awk '/backstage-dynamic-plugins-/{print $1; exit}')
+  operator_cm=$(oc get cm -n "$namespace" --no-headers 2> /dev/null | awk '/backstage-dynamic-plugins-/{print $1; exit}')
   if [[ -z "${operator_cm}" ]]; then
     log::error "OSD-GCP: could not resolve backstage-dynamic-plugins ConfigMap in ${namespace}"
     return 1
@@ -192,7 +192,7 @@ config::merge_osd_gcp_operator_dynamic_plugins() {
   log::info "OSD-GCP: merging into operator ConfigMap ${operator_cm}"
 
   operator_yaml=$(oc get cm "$operator_cm" -n "$namespace" -o jsonpath='{.data.dynamic-plugins\.yaml}')
-  custom_yaml=$(oc get cm "dynamic-plugins" -n "$namespace" -o jsonpath='{.data.dynamic-plugins\.yaml}' 2>/dev/null || echo "")
+  custom_yaml=$(oc get cm "dynamic-plugins" -n "$namespace" -o jsonpath='{.data.dynamic-plugins\.yaml}' 2> /dev/null || echo "")
 
   if [[ -z "${operator_yaml}" ]]; then
     log::error "OSD-GCP: ${operator_cm} has empty dynamic-plugins.yaml"
