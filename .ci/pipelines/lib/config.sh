@@ -2,7 +2,7 @@
 
 # Configuration management utilities for CI pipelines
 # Handles ConfigMap creation, dynamic plugins, and app configuration
-# Dependencies: oc, yq, lib/log.sh, lib/common.sh
+# Dependencies: oc, yq, jq, lib/log.sh, lib/common.sh
 
 # Prevent re-sourcing
 if [[ -n "${CONFIG_LIB_SOURCED:-}" ]]; then
@@ -155,6 +155,95 @@ config::strip_ghcr_dynamic_plugins_for_osd_gcp() {
     log::error "OSD-GCP: ghcr.io plugin entries still present after strip"
     return 1
   fi
+  return 0
+}
+
+# Merge pipeline dynamic-plugins into the operator's backstage-dynamic-plugins-* ConfigMap (OSD-GCP).
+# The init container reads the operator CM; defaults include oci {{inherit}} rows that cannot resolve
+# when includes are empty. Strip ghcr + inherit from the operator copy, merge with CI ConfigMap
+# dynamic-plugins (custom last wins per package), patch operator CM, restart Backstage.
+# Args:
+#   $1 - namespace
+#   $2 - backstage Deployment name (e.g. backstage-rhdh)
+# Returns:
+#   0 - Success
+config::merge_osd_gcp_operator_dynamic_plugins() {
+  local namespace=$1
+  local deployment_name=$2
+  local operator_cm operator_yaml custom_yaml
+  local op_raw op_stripped cust merged
+
+  if [[ -z "${namespace}" || -z "${deployment_name}" ]]; then
+    log::error "Usage: config::merge_osd_gcp_operator_dynamic_plugins <namespace> <deployment_name>"
+    return 1
+  fi
+
+  if ! common::poll_until \
+    "oc get cm -n ${namespace} --no-headers 2>/dev/null | grep -q backstage-dynamic-plugins-" \
+    60 5 "operator backstage-dynamic-plugins ConfigMap in ${namespace}"; then
+    return 1
+  fi
+
+  operator_cm=$(oc get cm -n "$namespace" --no-headers 2>/dev/null | awk '/backstage-dynamic-plugins-/{print $1; exit}')
+  if [[ -z "${operator_cm}" ]]; then
+    log::error "OSD-GCP: could not resolve backstage-dynamic-plugins ConfigMap in ${namespace}"
+    return 1
+  fi
+  log::info "OSD-GCP: merging into operator ConfigMap ${operator_cm}"
+
+  operator_yaml=$(oc get cm "$operator_cm" -n "$namespace" -o jsonpath='{.data.dynamic-plugins\.yaml}')
+  custom_yaml=$(oc get cm "dynamic-plugins" -n "$namespace" -o jsonpath='{.data.dynamic-plugins\.yaml}' 2>/dev/null || echo "")
+
+  if [[ -z "${operator_yaml}" ]]; then
+    log::error "OSD-GCP: ${operator_cm} has empty dynamic-plugins.yaml"
+    return 1
+  fi
+  if [[ -z "${custom_yaml}" ]]; then
+    log::error "OSD-GCP: ConfigMap dynamic-plugins missing or empty in ${namespace}"
+    return 1
+  fi
+
+  op_raw=$(mktemp)
+  op_stripped=$(mktemp)
+  cust=$(mktemp)
+  merged=$(mktemp)
+  printf '%s\n' "$operator_yaml" > "$op_raw"
+  printf '%s\n' "$custom_yaml" > "$cust"
+
+  yq eval '
+    .includes = [] |
+    .plugins = (.plugins // [] | map(select(
+      (.package != null) and
+      ((.package | tostring | length) > 0) and
+      ((.package | tostring | downcase | contains("ghcr.io")) | not) and
+      ((.package | tostring | contains("inherit")) | not)
+    )))
+  ' "$op_raw" > "$op_stripped" || {
+    rm -f "$op_raw" "$op_stripped" "$cust" "$merged"
+    return 1
+  }
+
+  yq eval-all '
+    select(fileIndex == 0) as $op |
+    select(fileIndex == 1) as $cust |
+    {
+      "includes": [],
+      "plugins": (($op.plugins // []) + ($cust.plugins // [])) | group_by(.package) | map(.[-1])
+    }
+  ' "$op_stripped" "$cust" > "$merged" || {
+    rm -f "$op_raw" "$op_stripped" "$cust" "$merged"
+    return 1
+  }
+
+  oc patch cm "$operator_cm" -n "$namespace" --type merge -p \
+    "{\"data\":{\"dynamic-plugins.yaml\":$(jq -Rs . < "$merged")}}" || {
+    rm -f "$op_raw" "$op_stripped" "$cust" "$merged"
+    return 1
+  }
+  rm -f "$op_raw" "$op_stripped" "$cust" "$merged"
+
+  log::info "OSD-GCP: restarting deployment/${deployment_name} to pick up merged plugins"
+  oc rollout restart "deployment/${deployment_name}" -n "$namespace" || return 1
   return 0
 }
 

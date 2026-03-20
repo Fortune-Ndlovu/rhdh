@@ -67,9 +67,9 @@ initiate_operator_deployments_osd_gcp() {
   oc apply -f /tmp/configmap-dynamic-plugins.yaml -n "${NAME_SPACE}"
   deploy_redis_cache "${NAME_SPACE}"
   deploy_rhdh_operator "${NAME_SPACE}" "${DIR}/resources/rhdh-operator/rhdh-start-osd-gcp.yaml"
-  # Re-apply our stripped ConfigMap after CR so it overwrites any default the operator merged; then restart so pods use it.
   oc apply -f /tmp/configmap-dynamic-plugins.yaml -n "${NAME_SPACE}"
-  oc rollout restart deployment/backstage-rhdh -n "${NAME_SPACE}" || true
+  # Init reads backstage-dynamic-plugins-* (operator defaults), not dynamic-plugins alone; merge+strip.
+  config::merge_osd_gcp_operator_dynamic_plugins "${NAME_SPACE}" "backstage-${RELEASE_NAME}" || return 1
 
   # Skip orchestrator plugins and workflows for OSD-GCP
   log::warn "Skipping orchestrator plugins and workflows deployment on OSD-GCP environment"
@@ -89,9 +89,8 @@ initiate_operator_deployments_osd_gcp() {
 
   oc apply -f /tmp/configmap-dynamic-plugins-rbac.yaml -n "${NAME_SPACE_RBAC}"
   deploy_rhdh_operator "${NAME_SPACE_RBAC}" "${DIR}/resources/rhdh-operator/rhdh-start-rbac-osd-gcp.yaml"
-  # Re-apply our stripped ConfigMap after CR so it overwrites any default the operator merged; then restart so pods use it.
   oc apply -f /tmp/configmap-dynamic-plugins-rbac.yaml -n "${NAME_SPACE_RBAC}"
-  oc rollout restart deployment/backstage-rhdh-rbac -n "${NAME_SPACE_RBAC}" || true
+  config::merge_osd_gcp_operator_dynamic_plugins "${NAME_SPACE_RBAC}" "backstage-${RELEASE_NAME_RBAC}" || return 1
 
   # Skip orchestrator plugins and workflows for OSD-GCP RBAC
   log::warn "Skipping orchestrator plugins and workflows deployment on OSD-GCP RBAC environment"
