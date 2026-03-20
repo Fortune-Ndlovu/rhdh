@@ -38,8 +38,11 @@ spec:
           value: "0"
         - name: NODE_ENV
           value: "production"
-        # OSD-GCP: Catalog index is extracted (operator default), but orchestrator plugins are
-        # disabled (not removed) so {{inherit}} has base configs to merge with.
+        # OSD-GCP e2e: skip plugin catalog index merge (see rhdh-start-osd-gcp.yaml).
+        - name: CATALOG_INDEX_IMAGE
+          value: ""
+          containers:
+            - install-dynamic-plugins
       secrets:
         - name: rhdh-secrets
     extraFiles:

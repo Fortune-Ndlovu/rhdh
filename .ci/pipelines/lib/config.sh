@@ -99,8 +99,7 @@ EOF
 }
 
 # Remove orchestrator-related dynamic plugin entries from merged Helm values (OSD-GCP operator).
-# Disabled orchestrator packages still merge with the catalog index and duplicate GHCR overlay
-# entries, causing install-dynamic-plugins InstallException (RHDH nightly OSD-GCP).
+# Orchestrator is not exercised on OSD-GCP; any remaining oci orchestrator rows stay disabled.
 # Args:
 #   $1 - values_file: Path to merged values YAML to edit in place
 # Returns:
@@ -114,20 +113,19 @@ config::strip_orchestrator_plugin_entries_for_osd_gcp() {
     return 1
   fi
 
-  # Instead of removing orchestrator plugins, disable them so {{inherit}} in catalog index has base configs.
-  # The catalog index (applied by operator default) contains orchestrator plugins with {{inherit}} that fail
-  # if no base configuration exists.
   # yq rejects if/then/else inside map(); use per-element assignment (same intent as orchestrator.sh).
   yq eval -i '(.global.dynamic.plugins[]? | select((.package | tostring | downcase | contains("orchestrator")))).disabled = true' "${values_file}" || return 1
   count_disabled=$(yq e '[.global.dynamic.plugins[] | select(.package | tostring | downcase | contains("orchestrator"))] | length' "${values_file}" 2> /dev/null || echo 0)
-  log::info "OSD-GCP: disabled ${count_disabled} orchestrator-related plugin(s) (kept as base for {{inherit}})"
+  log::info "OSD-GCP: disabled ${count_disabled} orchestrator-related plugin(s)"
 
   return 0
 }
 
 # OSD-GCP shared CI clusters cannot reliably reach ghcr.io (skopeo timeouts during
-# install-dynamic-plugins). Drop catalog/includes merge and all GHCR OCI plugin rows
-# so the init container only resolves quay.io, registry.access.redhat.com, and bundled dist paths.
+# install-dynamic-plugins). Clear chart includes and drop GHCR OCI plugin rows so the init container
+# only resolves quay.io, registry.access.redhat.com, and bundled dist paths.
+# Also drop every {{inherit}} row: with CATALOG_INDEX_IMAGE unset on OSD-GCP operator CR, includes are
+# empty and no catalog merge runs; {{inherit}} would have no base to resolve.
 # Args:
 #   $1 - values_file: merged Helm values to edit in place
 # Returns:
@@ -143,9 +141,7 @@ config::strip_ghcr_dynamic_plugins_for_osd_gcp() {
 
   count_before=$(yq e '.global.dynamic.plugins | length' "${values_file}" 2> /dev/null || echo 0)
   yq -i '.global.dynamic.includes = []' "${values_file}" || return 1
-  # Keep only plugins with a non-empty package that does not reference ghcr.io. Dropping null/empty
-  # package avoids install-dynamic-plugins crashes; dropping {{inherit}} refs avoids "no existing
-  # plugin configuration found" when includes is empty.
+  # Keep only plugins with a non-empty package that does not reference ghcr.io or {{inherit}}.
   yq -i '(.global.dynamic.plugins // []) |= map(select(
     (.package != null) and
     ((.package | tostring | length) > 0) and

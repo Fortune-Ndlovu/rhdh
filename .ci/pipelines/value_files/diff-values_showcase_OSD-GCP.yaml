@@ -1,7 +1,9 @@
 # This file is for OSD-GCP installation only.
-# After merge, CI runs config::strip_orchestrator_plugin_entries_for_osd_gcp then
-# config::strip_ghcr_dynamic_plugins_for_osd_gcp (empty includes, drop oci://ghcr.io rows).
-# OSD-GCP egress to ghcr.io is unreliable; without this, install-dynamic-plugins times out on skopeo.
+# After merge, CI runs strip_orchestrator + strip_ghcr (no ghcr.io, no {{inherit}}, includes=[]).
+# Operator Backstage CR clears CATALOG_INDEX_IMAGE for install-dynamic-plugins so the catalog index
+# is not merged (e2e-only; see rhdh-start-osd-gcp.yaml).
+#
+# OSD-GCP egress to ghcr.io is unreliable; without strip_ghcr, install-dynamic-plugins times out on skopeo.
 
 # Disable orchestrator for OSD-GCP due to infrastructure limitations
 orchestrator: null

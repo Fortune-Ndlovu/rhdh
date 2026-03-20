@@ -56,8 +56,8 @@ initiate_operator_deployments_osd_gcp() {
   apply_yaml_files "${DIR}" "${NAME_SPACE}" "${rhdh_base_url}"
 
   # Merge base values with OSD-GCP diff file before creating dynamic plugins config.
-  # Keep includes=[] (from strip_ghcr) so the installer never merges the catalog; the catalog
-  # contains ghcr.io plugins which OSD-GCP cannot reach (skopeo timeout).
+  # OSD-GCP Backstage CR clears CATALOG_INDEX_IMAGE on install-dynamic-plugins so the catalog index is
+  # not merged (avoids {{inherit}} without a base). strip_ghcr drops ghcr.io + {{inherit}} rows.
   helm::merge_values "merge" "${DIR}/value_files/${HELM_CHART_VALUE_FILE_NAME}" "${DIR}/value_files/${HELM_CHART_OSD_GCP_DIFF_VALUE_FILE_NAME}" "/tmp/merged-values_showcase_OSD-GCP.yaml"
   config::strip_orchestrator_plugin_entries_for_osd_gcp "/tmp/merged-values_showcase_OSD-GCP.yaml"
   config::strip_ghcr_dynamic_plugins_for_osd_gcp "/tmp/merged-values_showcase_OSD-GCP.yaml"
@@ -81,7 +81,6 @@ initiate_operator_deployments_osd_gcp() {
   apply_yaml_files "${DIR}" "${NAME_SPACE_RBAC}" "${rbac_rhdh_base_url}"
 
   # Merge RBAC values with OSD-GCP diff file before creating dynamic plugins config.
-  # Keep includes=[] so the catalog is never merged (avoids ghcr.io plugins in catalog).
   helm::merge_values "merge" "${DIR}/value_files/${HELM_CHART_RBAC_VALUE_FILE_NAME}" "${DIR}/value_files/${HELM_CHART_RBAC_OSD_GCP_DIFF_VALUE_FILE_NAME}" "/tmp/merged-values_showcase-rbac_OSD-GCP.yaml"
   config::strip_orchestrator_plugin_entries_for_osd_gcp "/tmp/merged-values_showcase-rbac_OSD-GCP.yaml"
   config::strip_ghcr_dynamic_plugins_for_osd_gcp "/tmp/merged-values_showcase-rbac_OSD-GCP.yaml"

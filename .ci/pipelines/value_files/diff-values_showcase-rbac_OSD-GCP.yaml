@@ -1,5 +1,5 @@
 # This file is for OSD-GCP RBAC installation only.
-# Same post-merge strips as diff-values_showcase_OSD-GCP.yaml (orchestrator + no GHCR plugins).
+# Same post-merge strips as diff-values_showcase_OSD-GCP.yaml; CATALOG_INDEX_IMAGE cleared on CR.
 
 # Disable orchestrator for OSD-GCP due to infrastructure limitations
 orchestrator: null
